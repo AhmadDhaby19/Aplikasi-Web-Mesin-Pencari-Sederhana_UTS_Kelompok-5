@@ -1,3 +1,12 @@
+# Anggota Kelompok 5:
+Achileus Danatha Bhramantyo (23050974122)
+Refiansyah Galuh R.P (23050974120)
+Reza Choirudin D (23050974125)
+Ahmad Dhaby S Bagus (23050974131)
+Hamdi Ahnaf Aswana ( 23050974148)
+
+
+
 # PustakaKata
 
 Aplikasi web mesin pencari dokumen teks. Indeksasi, pembobotan
