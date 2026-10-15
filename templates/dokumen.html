@@ -1,0 +1,54 @@
+{% extends "kerangka.html" %}
+{% block judul %}{{ d.judul }} | PustakaKata{% endblock %}
+
+{% block isi %}
+<p class="remah"><a href="{{ url_for('beranda') }}">Beranda</a> / Dokumen #{{ d.id }}</p>
+
+<header class="dokumen-kepala">
+  <h1>{{ d.judul }}</h1>
+  <p class="kartu-meta">
+    {% if d.kategori %}<span class="kat">{{ d.kategori }}</span>{% endif %}
+    <span>Dokumen #{{ d.id }}</span>
+  </p>
+</header>
+
+<article class="teks-dokumen">
+  <p>{{ d.dokumen }}</p>
+</article>
+
+<section class="bobot">
+  <div class="bobot-kepala">
+    <h2>Pembobotan TF-IDF 15 term teratas</h2>
+    <a class="tombol-sekunder" href="{{ url_for('export_dokumen', doc_id=d.id) }}">Unduh CSV TF-IDF</a>
+  </div>
+  <p class="rumus-baris">tf = 1 + log10(f) &nbsp;&middot;&nbsp; idf = log10(N / df) &nbsp;&middot;&nbsp; N = {{ jumlah_dokumen|angka }} dokumen</p>
+  <p class="rumus-baris">Kolom bobot = (tf &times; idf) setelah panjang vektor dokumen dinormalkan menjadi 1, jadi nilainya lebih kecil daripada tf &times; idf mentah.</p>
+
+  <div class="tabel-bungkus">
+    <table>
+      <thead>
+        <tr>
+          <th scope="col">Term</th>
+          <th scope="col">tf</th>
+          <th scope="col">df</th>
+          <th scope="col">idf</th>
+          <th scope="col">Bobot</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for b in bobot %}
+        <tr>
+          <th scope="row">{{ b.term }}</th>
+          <td>{{ b.tf }}</td>
+          <td>{{ b.df }}</td>
+          <td>{{ b.idf|desimal(4) }}</td>
+          <td>{{ b.bobot|desimal(4) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<p><a class="tombol" href="{{ url_for('beranda') }}">Cari dokumen lain</a></p>
+{% endblock %}

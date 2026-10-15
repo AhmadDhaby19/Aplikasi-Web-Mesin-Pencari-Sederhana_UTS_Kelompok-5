@@ -1,0 +1,51 @@
+{% extends "kerangka.html" %}
+{% block judul %}Demo pra-proses teks | PustakaKata{% endblock %}
+
+{% block isi %}
+<section class="hero hero-ringkas">
+  <h1>Demo pra-proses teks</h1>
+  <p class="hero-lead">Lima tahap berikut adalah jalur yang sama dipakai saat mengindeks {{ stat_dasar.jumlah_dokumen|angka }} dokumen dan saat memproses kueri pencarian.</p>
+
+  <form class="form-teks" method="post" data-sibuk="Memproses...">
+    <label for="teks">Teks masukan</label>
+    <textarea id="teks" name="teks" rows="6" placeholder="misalnya: Program vaksinasi anak dilaksanakan puskesmas bersama kader kesehatan pada tahun 2024.">{{ teks }}</textarea>
+    {% if galat %}
+    <p class="galat" role="alert">{{ galat }}</p>
+    {% endif %}
+    <button type="submit">Proses teks</button>
+  </form>
+</section>
+
+{% if hasil %}
+<ol class="tahap-blok">
+  {% for t in hasil.tahap %}
+  <li>
+    <div class="tahap-kepala">
+      <h2>{{ loop.index }}. {{ t.nama }}</h2>
+      <span class="tahap-jumlah">{{ t.jumlah }}</span>
+    </div>
+    {% if t.jenis == "teks" %}
+      {% if t.isi %}
+      <p class="keluaran">{{ t.isi }}</p>
+      {% else %}
+      <p class="keluaran-kosong">Tidak ada sisa teks setelah tahap ini.</p>
+      {% endif %}
+    {% elif t.isi %}
+      <ul class="token">
+        {% for k in t.isi %}<li>{{ k }}</li>{% endfor %}
+      </ul>
+    {% else %}
+      <p class="keluaran-kosong">Tidak ada token tersisa setelah tahap ini.</p>
+    {% endif %}
+  </li>
+  {% endfor %}
+</ol>
+<p class="tahap-catatan">Hasil akhir dari teks di atas menjadi token yang dibobot TF-IDF ketika pencarian dijalankan.</p>
+
+{% elif not galat %}
+<div class="kosong">
+  <h2>Belum ada teks yang diproses</h2>
+  <p>Masukkan teks pada kotak di atas lalu tekan "Proses teks". Setiap tahap akan ditampilkan beserta jumlah karakter atau token hasilnya.</p>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,128 @@
+{% extends "kerangka.html" %}
+{% block judul %}PustakaKata | Mesin pencari dokumen VSM + TF-IDF{% endblock %}
+
+{% block isi %}
+<section class="hero">
+  <h1>Cari satu kunci di {{ stat_dasar.jumlah_dokumen|angka }} dokumen sekaligus.</h1>
+  <p class="hero-lead">Setiap dokumen dijalankan lewat lima tahap pra-proses, dibobot dengan TF-IDF, lalu diperingkat memakai cosine similarity terhadap kueri Anda.</p>
+
+  <form class="kotak-cari" action="{{ url_for('cari') }}" method="get" role="search" data-sibuk="Mencari...">
+    <label for="q">Kueri pencarian</label>
+    <div class="baris-cari">
+      <input type="search" id="q" name="q" placeholder="{{ placeholder_kueri|default('kata kunci pencarian') }}" autocomplete="off" required>
+      <select id="kategori" name="kategori" aria-label="Filter kategori">
+        <option value="">Semua kategori</option>
+        {% for kat in daftar_kategori %}
+        <option value="{{ kat }}">{{ kat }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit">Cari</button>
+    </div>
+  </form>
+
+  <div class="contoh">
+    <span class="contoh-label">Contoh kueri:</span>
+    <ul>
+      {% for c in contoh %}
+      <li><a href="{{ url_for('cari', q=c) }}">{{ c }}</a></li>
+      {% endfor %}
+    </ul>
+  </div>
+</section>
+
+<section class="statistik" aria-label="Statistik indeks">
+  <dl>
+    <div class="stat">
+      <dt>Dokumen terindeks</dt>
+      <dd>{{ stats.jumlah_dokumen|angka }}</dd>
+    </div>
+    <div class="stat">
+      <dt>Term / Lexicon (Dimensi)</dt>
+      <dd>{{ stats.jumlah_term|angka }}</dd>
+    </div>
+    <div class="stat">
+      <dt>Token setelah pra-proses</dt>
+      <dd>{{ stats.jumlah_token|angka }}</dd>
+    </div>
+    <div class="stat">
+      <dt>Waktu indeksasi</dt>
+      <dd>{{ stats.build_ms|durasi }}</dd>
+    </div>
+    <div class="stat">
+      <dt>Kategori dokumen</dt>
+      <dd>{{ stats.jumlah_kategori|angka }}</dd>
+    </div>
+  </dl>
+  <p class="statistik-catatan">
+    {% if stats.dari_cache %}
+    Indeks dimuat dari cache dalam {{ stats.muat_ms|durasi }}. Set environment BUILD_INDEKS=1 untuk membangun ulang dari CSV.
+    {% else %}
+    Indeks dibangun dari CSV saat aplikasi dimulai, lalu disimpan ke file cache.
+    {% endif %}
+  </p>
+</section>
+
+<section class="pipeline">
+  <div class="alur-teks">
+    <h2>Dari teks mentah menjadi vektor</h2>
+    <p>Dokumen dan kueri melewati jalur yang sama, supaya bentuk katanya selalu bisa dibandingkan. Setelah token dibobot, tiap dokumen menjadi vektor, dan kueri diukur jaraknya terhadap vektor-vektor itu.</p>
+    <dl class="rumus">
+      <div>
+        <dt>Term frequency</dt>
+        <dd>tf = 1 + log10(f)</dd>
+      </div>
+      <div>
+        <dt>Inverse document frequency</dt>
+        <dd>idf = log10(N / df)</dd>
+      </div>
+      <div>
+        <dt>Bobot term</dt>
+        <dd>w = tf &times; idf, lalu panjang vektor d normalkan jadi 1</dd>
+      </div>
+      <div>
+        <dt>Perangkingan</dt>
+        <dd>cos(q, d) = &Sigma; w<sub>q</sub> &times; w<sub>d</sub></dd>
+      </div>
+    </dl>
+    <p class="alur-taut"><a href="{{ url_for('halaman_preprocess') }}">Uji lima tahap pra-proses pada teks Anda sendiri</a></p>
+  </div>
+
+  <ol class="tahap">
+    <li>
+      <span class="tahap-nomor">1</span>
+      <div>
+        <h3>Cleaning</h3>
+        <p>URL, tag HTML, angka, dan tanda baca dibuang dari teks.</p>
+      </div>
+    </li>
+    <li>
+      <span class="tahap-nomor">2</span>
+      <div>
+        <h3>Case folding</h3>
+        <p>Semua huruf diubah menjadi huruf kecil supaya seragam.</p>
+      </div>
+    </li>
+    <li>
+      <span class="tahap-nomor">3</span>
+      <div>
+        <h3>Tokenizing</h3>
+        <p>Teks dipecah menjadi daftar kata.</p>
+      </div>
+    </li>
+    <li>
+      <span class="tahap-nomor">4</span>
+      <div>
+        <h3>Stopword removal</h3>
+        <p>Kata umum tanpa bobot makna seperti "yang", "dan", dan "di" dibuang.</p>
+      </div>
+    </li>
+    <li>
+      <span class="tahap-nomor">5</span>
+      <div>
+        <h3>Stemming</h3>
+        <p>Akar kata disamakan, misalnya "meningkatkan" menjadi "tingkat".</p>
+      </div>
+    </li>
+  </ol>
+</section>
+{% endblock %}

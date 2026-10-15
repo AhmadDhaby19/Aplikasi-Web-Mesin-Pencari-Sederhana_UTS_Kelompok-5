@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block judul %}PustakaKata | Mesin pencari dokumen VSM + TF-IDF{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  <a class="lompat" href="#konten">Lewati ke konten</a>
+
+  <header class="kop">
+    <div class="wadah kop-isi">
+      <a class="merek" href="{{ url_for('beranda') }}">
+        PustakaKata
+        <span class="merek-bawahan">{{ stat_dasar.jumlah_dokumen|angka }} dokumen | VSM + TF-IDF</span>
+      </a>
+      <nav class="menu" aria-label="Menu utama">
+        <a href="{{ url_for('beranda') }}"{% if nav_aktif.beranda %} aria-current="page"{% endif %}>Beranda</a>
+        <a href="{{ url_for('katalog_dokumen') }}"{% if nav_aktif.katalog %} aria-current="page"{% endif %}>Katalog</a>
+        <a href="{{ url_for('halaman_kosakata') }}"{% if nav_aktif.kosakata %} aria-current="page"{% endif %}>Kosakata</a>
+        <a href="{{ url_for('halaman_riwayat') }}"{% if nav_aktif.riwayat %} aria-current="page"{% endif %}>Riwayat</a>
+        <a href="{{ url_for('halaman_upload') }}"{% if nav_aktif.upload %} aria-current="page"{% endif %}>Unggah CSV</a>
+        <a href="{{ url_for('halaman_preprocess') }}"{% if nav_aktif.preprocess %} aria-current="page"{% endif %}>Demo pra-proses</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="konten" class="wadah">
+    {% block isi %}{% endblock %}
+  </main>
+
+  <footer class="kaki">
+    <div class="wadah">
+      <p>Mesin pencari dokumen dengan Vector Space Model dan TF-IDF. {{ stat_dasar.jumlah_dokumen|angka }} dokumen, {{ stat_dasar.jumlah_term|angka }} term terindeks.</p>
+      <p class="kaki-catatan">Indeksasi, pembobotan, dan perangkingan dihitung di server. Dataset: file CSV yang dibaca saat aplikasi dimulai.</p>
+    </div>
+  </footer>
+
+  <script>
+    document.addEventListener("submit", function (event) {
+      var form = event.target;
+      var label = form.getAttribute("data-sibuk");
+      if (!label) return;
+      var tombol = form.querySelector('button[type="submit"]');
+      if (tombol) {
+        tombol.disabled = true;
+        tombol.textContent = label;
+      }
+    });
+  </script>
+</body>
+</html>

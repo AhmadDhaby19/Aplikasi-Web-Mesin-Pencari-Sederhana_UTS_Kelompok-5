@@ -1,0 +1,173 @@
+{% extends "kerangka.html" %}
+{% block judul %}Unggah Dataset CSV | PustakaKata{% endblock %}
+
+{% block isi %}
+<section class="hero hero-ringkas">
+  <h1>Unggah Dataset Dokumen CSV</h1>
+  <p class="hero-lead">Ganti korpus dokumen dengan mengunggah berkas CSV Anda sendiri. Sistem akan memverifikasi struktur kolom, melakukan pra-proses 5 tahap, dan membangun ulang indeks VSM secara otomatis.</p>
+</section>
+
+{% if sukses %}
+<div class="pesan-sukses" role="alert">
+  <p><strong>Sukses:</strong> {{ sukses }}</p>
+  <p><a href="{{ url_for('katalog_dokumen') }}">Lihat di Katalog Dokumen</a> &middot; <a href="{{ url_for('halaman_kosakata') }}">Lihat Kosakata Lexicon</a> &middot; <a href="{{ url_for('beranda') }}">Mulai Pencarian</a></p>
+</div>
+{% endif %}
+
+{% if galat %}
+<p class="galat" role="alert"><strong>Galat:</strong> {{ galat }}</p>
+{% endif %}
+
+<div class="kartu-info-dataset">
+  <h2>Status Dataset Aktif</h2>
+  <dl class="info-grid">
+    <div>
+      <dt>Nama berkas</dt>
+      <dd><code>{{ info.nama }}</code></dd>
+    </div>
+    <div>
+      <dt>Ukuran berkas</dt>
+      <dd>{{ info.ukuran_kb }} KB</dd>
+    </div>
+    <div>
+      <dt>Jumlah dokumen</dt>
+      <dd>{{ info.jumlah_dokumen|angka }} dokumen</dd>
+    </div>
+    <div>
+      <dt>Lexicon (dimensi)</dt>
+      <dd>{{ info.jumlah_term|angka }} term</dd>
+    </div>
+    <div>
+      <dt>Terakhir diubah</dt>
+      <dd>{{ info.terakhir_diubah }}</dd>
+    </div>
+  </dl>
+</div>
+
+<section class="form-upload-bungkus">
+  <h2>Unggah Berkas CSV Baru</h2>
+  <form class="form-teks" action="{{ url_for('halaman_upload') }}" method="post" enctype="multipart/form-data" data-sibuk="Mengunggah &amp; Mengindeks...">
+    <label for="berkas">Pilih berkas CSV (.csv):</label>
+    <input type="file" id="berkas" name="berkas" accept=".csv" required class="input-berkas">
+    
+    <div class="petunjuk-upload">
+      <h3>Panduan Struktur Kolom CSV</h3>
+      <p>Sistem mendukung pemetaan nama kolom fleksibel (bahasa Indonesia maupun Inggris):</p>
+      <ul>
+        <li><strong>ID Dokumen:</strong> <code>id</code>, <code>no</code>, <code>dokumen_id</code>, <code>nomor</code> (opsional, otomatis bernomor 1..N jika kosong).</li>
+        <li><strong>Judul:</strong> <code>judul</code>, <code>title</code>, <code>nama</code>, <code>heading</code> (opsional).</li>
+        <li><strong>Kategori:</strong> <code>kategori</code>, <code>category</code>, <code>topik</code>, <code>label</code> (opsional).</li>
+        <li><strong>Isi Dokumen:</strong> <code>dokumen</code>, <code>text</code>, <code>teks</code>, <code>isi</code>, <code>content</code>, <code>article</code>, <code>body</code> (wajib).</li>
+      </ul>
+      <p class="meta-kecil">Jika nama kolom teks tidak cocok dengan daftar di atas, kolom dengan isi terpanjang akan dipilih secara otomatis sebagai teks dokumen.</p>
+    </div>
+
+    <button type="submit">Unggah &amp; Bangun Indeks</button>
+  </form>
+</section>
+
+{% if sukses and sampel_dokumen %}
+<section class="langkah-blok hasil-upload-bungkus" id="hasil-indeksasi" aria-labelledby="hasil-upload-judul">
+  <div class="langkah-header">
+    <div class="langkah-judul-grup">
+      <span class="langkah-badge" style="background: #2e6234;">Hasil Indeksasi</span>
+      <h2 id="hasil-upload-judul">Dataset Baru Berhasil Diindeks ke Vector Space Model</h2>
+    </div>
+    <span class="meta-kecil">{{ info.jumlah_dokumen|angka }} dokumen &middot; {{ info.jumlah_term|angka }} lexicon</span>
+  </div>
+
+  <div class="kotak-cari-baru">
+    <h3 class="sub-judul-langkah">Uji Pencarian Langsung pada Dataset Baru:</h3>
+    <form class="kotak-cari" action="{{ url_for('cari') }}" method="get" role="search" data-sibuk="Mencari...">
+      <div class="baris-cari">
+        <input type="search" name="q" placeholder="Ketik kata kunci untuk menguji indeksasi baru..." required>
+        <button type="submit">Cari di Dataset Baru</button>
+      </div>
+    </form>
+  </div>
+
+  {% if kategori_sebaran %}
+  <div class="sebaran-kategori-baru">
+    <h3 class="sub-judul-langkah">Sebaran Kategori Terdeteksi ({{ kategori_sebaran|length }} Kategori):</h3>
+    <div class="kategori-chip-grup">
+      {% for kat, jml in kategori_sebaran %}
+      <span class="kat-chip">
+        <strong>{{ kat }}</strong>
+        <span class="kat-cacah">{{ jml|angka }} dok</span>
+      </span>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="pratinjau-seksi">
+    <div class="pratinjau-kepala">
+      <h3 class="sub-judul-langkah">Pratinjau Dokumen Terindeks (10 Teratas)</h3>
+      <a class="tautan-aksi" href="{{ url_for('katalog_dokumen') }}">Buka Katalog Lengkap ({{ info.jumlah_dokumen|angka }} dok) &rarr;</a>
+    </div>
+    <div class="tabel-bungkus">
+      <table class="tabel-katalog">
+        <thead>
+          <tr>
+            <th scope="col" style="width: 75px;">ID</th>
+            <th scope="col">Judul &amp; Cuplikan Teks Dokumen</th>
+            <th scope="col" style="width: 150px;">Kategori</th>
+            <th scope="col" style="width: 130px;">Detail VSM</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for d in sampel_dokumen %}
+          <tr>
+            <th scope="row">#{{ d.id }}</th>
+            <td>
+              <strong><a href="{{ url_for('dokumen', doc_id=d.id) }}">{{ d.judul }}</a></strong>
+              <p class="cuplikan-katalog">{{ d.dokumen[:150] }}{% if d.dokumen|length > 150 %}...{% endif %}</p>
+            </td>
+            <td>{% if d.kategori %}<span class="kat">{{ d.kategori }}</span>{% endif %}</td>
+            <td>
+              <a class="tautan-aksi" href="{{ url_for('dokumen', doc_id=d.id) }}">Bobot VSM &rarr;</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {% if top_lexicon %}
+  <div class="pratinjau-seksi" style="margin-top: 24px;">
+    <div class="pratinjau-kepala">
+      <h3 class="sub-judul-langkah">Pratinjau 10 Lexicon Teratas (Document Frequency Tertinggi)</h3>
+      <a class="tautan-aksi" href="{{ url_for('halaman_kosakata') }}">Buka Seluruh Lexicon ({{ info.jumlah_term|angka }} dimensi) &rarr;</a>
+    </div>
+    <div class="tabel-bungkus">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col" style="width: 60px;">No</th>
+            <th scope="col">Term Hasil Pra-proses</th>
+            <th scope="col" style="width: 180px;">Collection Frequency (CF)</th>
+            <th scope="col" style="width: 180px;">Document Frequency (DF)</th>
+            <th scope="col" style="width: 130px;">Bobot IDF</th>
+            <th scope="col" style="width: 130px;">Uji Kueri</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in top_lexicon %}
+          <tr>
+            <td>{{ loop.index }}</td>
+            <th scope="row"><code>{{ t.term }}</code></th>
+            <td>{{ t.cf|angka }} kali</td>
+            <td>{{ t.df|angka }} dok</td>
+            <td>{{ t.idf|desimal(4) }}</td>
+            <td><a class="tautan-aksi" href="{{ url_for('cari', q=t.term) }}">Cari term &rarr;</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+</section>
+{% endif %}
+{% endblock %}

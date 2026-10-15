@@ -1,0 +1,285 @@
+{% extends "kerangka.html" %}
+{% block judul %}{% if q %}{{ q }} | hasil pencarian{% else %}Hasil pencarian{% endif %} | PustakaKata{% endblock %}
+
+{% block isi %}
+<section class="hero hero-ringkas">
+  <form class="kotak-cari" action="{{ url_for('cari') }}" method="get" role="search" data-sibuk="Mencari...">
+    <label for="q">Kueri pencarian</label>
+    <div class="baris-cari">
+      <input type="search" id="q" name="q" value="{{ q }}" placeholder="pemanasan global" autocomplete="off" required>
+      <select id="kategori" name="kategori" aria-label="Filter kategori">
+        <option value="">Semua kategori</option>
+        {% for kat in daftar_kategori %}
+        <option value="{{ kat }}"{% if kat == kategori_aktif %} selected{% endif %}>{{ kat }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit">Cari</button>
+    </div>
+  </form>
+</section>
+
+{% if kategori_aktif %}
+<div class="filter-aktif">
+  <span>Filter kategori: <strong>{{ kategori_aktif }}</strong></span>
+  <a href="{{ url_for('cari', q=q) }}">Hapus filter</a>
+</div>
+{% endif %}
+
+{% if kosong %}
+<div class="kosong">
+  <h2>Belum ada kueri</h2>
+  <p>Ketik kata kunci pada kotak pencarian di atas, atau mulai dari <a href="{{ url_for('beranda') }}">beranda</a>.</p>
+</div>
+
+{% else %}
+<!-- LANGKAH 1 -->
+<section class="langkah-blok" aria-labelledby="langkah-1-judul">
+  <div class="langkah-header">
+    <div class="langkah-judul-grup">
+      <span class="langkah-badge">Langkah 1</span>
+      <h2 id="langkah-1-judul">Kueri Asli &amp; Jejak Pra-proses Kueri (Tokenisasi)</h2>
+    </div>
+    <div class="jejak-aksi">
+      <span class="meta-kecil">{{ r.total|angka }} dari {{ jumlah_dokumen|angka }} dokumen cocok | dihitung {{ r.ambil_ms|desimal(2) }} ms</span>
+      {% if hasil %}
+      <a class="tombol-sekunder" href="{{ url_for('export_search', q=q, kategori=kategori_aktif if kategori_aktif else None) }}">Unduh CSV Hasil</a>
+      {% endif %}
+    </div>
+  </div>
+  <ol class="jejak-tahap">
+    <li>
+      <span class="jejak-nama">Kueri asli</span>
+      <code>{{ q }}</code>
+    </li>
+    <li>
+      <span class="jejak-nama">Cleaning &amp; case folding</span>
+      <code>{{ r.kueri.tahap[1].isi if r.kueri.tahap[1].isi else "(teks habis terhapus)" }}</code>
+    </li>
+    <li>
+      <span class="jejak-nama">Tokenizing ({{ r.kueri.tahap[2].jumlah }})</span>
+      {% if r.kueri.tahap[2].isi %}
+      <ul class="token">
+        {% for t in r.kueri.tahap[2].isi %}<li>{{ t }}</li>{% endfor %}
+      </ul>
+      {% else %}
+      <p class="keluaran-kosong">Tidak ada token yang tersisa.</p>
+      {% endif %}
+    </li>
+    <li>
+      <span class="jejak-nama">Setelah stopword &amp; stemming</span>
+      {% if r.kueri.tokens %}
+      <ul class="token">
+        {% for t in r.kueri.tokens %}<li>{{ t }}</li>{% endfor %}
+      </ul>
+      {% else %}
+      <p class="keluaran-kosong">Tidak ada token yang tersisa.</p>
+      {% endif %}
+    </li>
+  </ol>
+</section>
+
+<!-- LANGKAH 2 -->
+<section class="langkah-blok" aria-labelledby="langkah-2-judul">
+  <div class="langkah-header">
+    <div class="langkah-judul-grup">
+      <span class="langkah-badge">Langkah 2</span>
+      <h2 id="langkah-2-judul">Pencocokan Lexicon (Kosakata Korpus vs Term OOV)</h2>
+    </div>
+    <span class="meta-kecil">Lexicon korpus: {{ stat_dasar.jumlah_term|angka }} dimensi vektor</span>
+  </div>
+  <div class="pencocokan-lexicon">
+    <div class="lexicon-sub">
+      <h3 class="sub-judul-langkah">Term Kueri Cocok pada Lexicon Korpus (Terbobot):</h3>
+      {% if r.tabel_kueri %}
+      <ul class="token">
+        {% for tk in r.tabel_kueri %}
+        <li>{{ tk.term }} <span class="token-sub">(df: {{ tk.df }})</span></li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="keluaran-kosong">Tidak ada term kueri yang cocok dengan lexicon korpus.</p>
+      {% endif %}
+    </div>
+
+    {% if r.kueri.tidak_dikenal %}
+    <div class="lexicon-sub oov-sub">
+      <h3 class="sub-judul-langkah">Term Out-of-Vocabulary (OOV / Di Luar Kosakata Korpus):</h3>
+      <p class="catatan-oov">Term berikut tidak ditemukan pada korpus dokumen, sehingga diabaikan pada pembentukan vektor kueri:</p>
+      <ul class="token token-oov">
+        {% for t in r.kueri.tidak_dikenal %}
+        <li>{{ t }} <span class="token-sub">(OOV)</span></li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% else %}
+    <p class="catatan-sukses-oov">&check; Seluruh token kueri berhasil dicocokkan ke dalam lexicon korpus (tidak ada term OOV).</p>
+    {% endif %}
+  </div>
+</section>
+
+<!-- LANGKAH 3 -->
+<section class="langkah-blok" aria-labelledby="langkah-3-judul">
+  <div class="langkah-header">
+    <div class="langkah-judul-grup">
+      <span class="langkah-badge">Langkah 3</span>
+      <h2 id="langkah-3-judul">Perhitungan Bobot TF, DF, IDF, dan Vektor Kueri (w<sub>q</sub>)</h2>
+    </div>
+    <span class="meta-kecil">Kosakata / Lexicon ({{ stat_dasar.jumlah_term|angka }} Dimensi Vektor)</span>
+  </div>
+  {% if r.tabel_kueri %}
+  <p class="rumus-baris">Rumus: tf<sub>q</sub> = 1 + log10(f) &nbsp;&middot;&nbsp; idf = log10(N / df) &nbsp;&middot;&nbsp; w<sub>q</sub> = (tf &times; idf) dinormalkan Euclidean (L2) ke panjang 1</p>
+  <div class="tabel-bungkus">
+    <table>
+      <thead>
+        <tr>
+          <th scope="col">Term Lexicon (t)</th>
+          <th scope="col">tf<sub>q</sub></th>
+          <th scope="col">df</th>
+          <th scope="col">idf</th>
+          <th scope="col">Bobot Vektor w<sub>q</sub> (L2)</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for tk in r.tabel_kueri %}
+        <tr>
+          <th scope="row"><code>{{ tk.term }}</code></th>
+          <td>{{ tk.tf }}</td>
+          <td>{{ tk.df }}</td>
+          <td>{{ tk.idf|desimal(4) }}</td>
+          <td><strong>{{ tk.bobot|desimal(4) }}</strong></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="keluaran-kosong">Tidak ada vektor kueri yang terbentuk karena tidak ada term yang cocok dalam lexicon.</p>
+  {% endif %}
+</section>
+
+<!-- LANGKAH 4 -->
+<section class="langkah-blok" aria-labelledby="langkah-4-judul">
+  <div class="langkah-header">
+    <div class="langkah-judul-grup">
+      <span class="langkah-badge">Langkah 4</span>
+      <h2 id="langkah-4-judul">Perangkingan Cosine Similarity (&Sigma; w<sub>q</sub> &times; w<sub>d</sub>) &amp; Hasil Dokumen</h2>
+    </div>
+    <span class="meta-kecil">{{ r.total|angka }} dokumen terurut relevan</span>
+  </div>
+
+  {% if r.total > 0 and distribusi_skor %}
+  <div class="distribusi-bungkus" style="margin-top: 0; padding-top: 0; border-top: none;">
+    <h3 class="sub-judul-jejak">Distribusi Nilai Cosine Similarity</h3>
+    <div class="grafik-distribusi" role="img" aria-label="Histogram distribusi skor cosine">
+      {% for d in distribusi_skor %}
+      <div class="kolom-distribusi">
+        <span class="batang-angka">{{ d.jumlah }} dok</span>
+        <div class="batang-bungkus">
+          <div class="batang-isi" style="height: {{ d.tinggi }}%;"></div>
+        </div>
+        <span class="batang-label">{{ d.label }}</span>
+        <span class="batang-persen">{{ d.persen }}%</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  {% if not r.kueri.tokens %}
+  <div class="kosong">
+    <h2>Semua kata kueri terhapus saat pra-proses</h2>
+    <p>Kueri hanya berisi stopword. Tambahkan kata bermakna, misalnya nama topik atau objek yang ingin dicari.</p>
+  </div>
+
+  {% elif hasil %}
+  <ol class="daftar-hasil">
+    {% for h in hasil %}
+    <li>
+      <span class="peringkat">{{ "%02d"|format(offset + loop.index) }}</span>
+      <article class="kartu-hasil">
+        <h3><a href="{{ url_for('dokumen', doc_id=h.dokumen.id) }}">{{ h.dokumen.judul }}</a></h3>
+        <p class="kartu-meta">
+          {% if h.dokumen.kategori %}<span class="kat">{{ h.dokumen.kategori }}</span>{% endif %}
+          <span>Dokumen #{{ h.dokumen.id }}</span>
+          <span class="skor-angka">cos = {{ h.skor|desimal(4) }}</span>
+        </p>
+        <p class="cuplikan">{% for kata, cocok in h.cuplikan %}{% if cocok %}<mark>{{ kata }}</mark>{% else %}{{ kata }}{% endif %} {% endfor %}</p>
+        <div class="skor-bar" aria-hidden="true"><span style="width: {{ (h.skor / tertinggi * 100)|round(1) }}%"></span></div>
+
+        {% if h.matriks %}
+        <details class="rincian-matriks">
+          <summary>Rincian perhitungan perkalian dot VSM</summary>
+          <div class="tabel-bungkus">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Term</th>
+                  <th scope="col">w<sub>q</sub></th>
+                  <th scope="col">tf<sub>d</sub></th>
+                  <th scope="col">w<sub>d</sub></th>
+                  <th scope="col">w<sub>q</sub> &times; w<sub>d</sub></th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for m in h.matriks %}
+                <tr>
+                  <th scope="row">{{ m.term }}</th>
+                  <td>{{ m.w_q|desimal(4) }}</td>
+                  <td>{{ m.tf_d }}</td>
+                  <td>{{ m.w_d|desimal(4) }}</td>
+                  <td>{{ m.dot|desimal(4) }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <th colspan="4" scope="row">Cosine Similarity (&Sigma;)</th>
+                  <td><strong>{{ h.skor|desimal(4) }}</strong></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </details>
+        {% endif %}
+      </article>
+    </li>
+    {% endfor %}
+  </ol>
+
+  {% if maks_hal > 1 %}
+  <nav class="paginasi" aria-label="Halaman hasil pencarian">
+    {% if hal > 1 %}
+    <a class="tombol-hal" href="{{ url_for('cari', q=q, kategori=kategori_aktif if kategori_aktif else None, halaman=hal - 1) }}">Sebelumnya</a>
+    {% endif %}
+    <ul>
+      {% for item in jendela %}
+      <li>
+        {% if item == "…" %}
+        <span class="titik-hal">…</span>
+        {% elif item == hal %}
+        <span aria-current="page">{{ item }}</span>
+        {% else %}
+        <a href="{{ url_for('cari', q=q, kategori=kategori_aktif if kategori_aktif else None, halaman=item) }}" aria-label="Halaman {{ item }}">{{ item }}</a>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% if hal < maks_hal %}
+    <a class="tombol-hal" href="{{ url_for('cari', q=q, kategori=kategori_aktif if kategori_aktif else None, halaman=hal + 1) }}">Berikutnya</a>
+    {% endif %}
+  </nav>
+  {% endif %}
+
+  {% else %}
+  <div class="kosong">
+    <h2>Tidak ada dokumen yang cocok</h2>
+    <p>Token hasil pra-proses tidak ditemukan pada satu pun dokumen korpus{% if kategori_aktif %} dalam kategori <strong>{{ kategori_aktif }}</strong>{% endif %}:</p>
+    <ul class="token">
+      {% for t in r.kueri.tokens %}<li>{{ t }}</li>{% endfor %}
+    </ul>
+    <p>Saran: periksa ejaan, kurangi jumlah kata{% if kategori_aktif %}, kosongkan filter kategori{% endif %}, atau pakai contoh kueri dari <a href="{{ url_for('beranda') }}">beranda</a>.</p>
+  </div>
+  {% endif %}
+</section>
+{% endif %}
+{% endblock %}

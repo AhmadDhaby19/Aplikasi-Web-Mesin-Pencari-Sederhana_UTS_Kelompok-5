@@ -1,0 +1,96 @@
+{% extends "kerangka.html" %}
+{% block judul %}Kosakata / Lexicon ({{ total_kosakata|angka }} Dimensi Vektor) | PustakaKata{% endblock %}
+
+{% block isi %}
+<section class="hero hero-ringkas">
+  <div class="jejak-kepala">
+    <h1>Kosakata / Lexicon ({{ total_kosakata|angka }} Dimensi Vektor)</h1>
+    <a class="tombol-sekunder" href="{{ url_for('export_kosakata', q=q if q else None, urut=urut, arah=arah) }}">Unduh CSV Kosakata</a>
+  </div>
+  <p class="hero-lead">Semua kata unik = lexicon; jumlahnya adalah jumlah dimensi ruang vektor ({{ total_kosakata|angka }} dimensi). Menampilkan term hasil pra-proses beserta Collection Frequency (CF), Document Frequency (DF), dan Inverse Document Frequency (IDF).</p>
+
+  <form class="kotak-cari" action="{{ url_for('halaman_kosakata') }}" method="get" role="search">
+    <label for="q">Cari term kosakata</label>
+    <div class="baris-cari">
+      <input type="search" id="q" name="q" value="{{ q }}" placeholder="Ketik kata dasar term..." autocomplete="off">
+      <select id="urut" name="urut" aria-label="Urutkan berdasarkan">
+        <option value="df"{% if urut == 'df' %} selected{% endif %}>Urutkan: DF (Dokumen)</option>
+        <option value="cf"{% if urut == 'cf' %} selected{% endif %}>Urutkan: CF (Total Frekuensi)</option>
+        <option value="idf"{% if urut == 'idf' %} selected{% endif %}>Urutkan: IDF (Bobot Unik)</option>
+        <option value="term"{% if urut == 'term' %} selected{% endif %}>Urutkan: Nama Term (A-Z)</option>
+      </select>
+      <select id="arah" name="arah" aria-label="Arah urutan">
+        <option value="desc"{% if arah == 'desc' %} selected{% endif %}>Menurun (Tertinggi)</option>
+        <option value="asc"{% if arah == 'asc' %} selected{% endif %}>Menaik (Terendah)</option>
+      </select>
+      <button type="submit">Terapkan</button>
+    </div>
+  </form>
+</section>
+
+{% if q %}
+<div class="filter-aktif">
+  <span>Menampilkan <strong>{{ total|angka }}</strong> dari {{ total_kosakata|angka }} term dengan filter <em>"{{ q }}"</em></span>
+  <a href="{{ url_for('halaman_kosakata') }}">Reset filter</a>
+</div>
+{% endif %}
+
+{% if terms %}
+<div class="tabel-bungkus">
+  <table>
+    <thead>
+      <tr>
+        <th scope="col" style="width: 60px;">No</th>
+        <th scope="col">Term Hasil Stemming</th>
+        <th scope="col" style="width: 170px;">Collection Freq (CF)</th>
+        <th scope="col" style="width: 170px;">Document Freq (DF)</th>
+        <th scope="col" style="width: 130px;">Nilai IDF</th>
+        <th scope="col" style="width: 140px;">Cari di Korpus</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for t in terms %}
+      <tr>
+        <td>{{ offset + loop.index }}</td>
+        <th scope="row"><code>{{ t.term }}</code></th>
+        <td>{{ t.cf|angka }} kali</td>
+        <td>{{ t.df|angka }} / {{ jumlah_dokumen|angka }} dok</td>
+        <td>{{ t.idf|desimal(4) }}</td>
+        <td><a class="tautan-aksi" href="{{ url_for('cari', q=t.term) }}">Cari term &rarr;</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% if maks_hal > 1 %}
+<nav class="paginasi" aria-label="Halaman kosakata">
+  {% if hal > 1 %}
+  <a class="tombol-hal" href="{{ url_for('halaman_kosakata', q=q if q else None, urut=urut, arah=arah, halaman=hal - 1) }}">Sebelumnya</a>
+  {% endif %}
+  <ul>
+    {% for item in jendela %}
+    <li>
+      {% if item == "…" %}
+      <span class="titik-hal">…</span>
+      {% elif item == hal %}
+      <span aria-current="page">{{ item }}</span>
+      {% else %}
+      <a href="{{ url_for('halaman_kosakata', q=q if q else None, urut=urut, arah=arah, halaman=item) }}" aria-label="Halaman {{ item }}">{{ item }}</a>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% if hal < maks_hal %}
+  <a class="tombol-hal" href="{{ url_for('halaman_kosakata', q=q if q else None, urut=urut, arah=arah, halaman=hal + 1) }}">Berikutnya</a>
+  {% endif %}
+</nav>
+{% endif %}
+
+{% else %}
+<div class="kosong">
+  <h2>Term tidak ditemukan</h2>
+  <p>Tidak ada term dalam kosakata korpus yang sesuai dengan filter kata kunci. Silakan <a href="{{ url_for('halaman_kosakata') }}">reset filter</a>.</p>
+</div>
+{% endif %}
+{% endblock %}

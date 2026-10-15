@@ -1,0 +1,23 @@
+[2026-10-14 15:00:20] q="pejalan kaki" kat="Semua" cocok=6025 durasi=115.79ms ip=127.0.0.1
+[2026-10-14 15:00:30] q="kanan" kat="Semua" cocok=16432 durasi=94.93ms ip=127.0.0.1
+[2026-10-14 15:00:30] q="qqqzzz xxxyyy" kat="Semua" cocok=0 durasi=0.09ms ip=127.0.0.1
+[2026-10-14 15:00:30] q="kanan" kat="Semua" cocok=16432 durasi=276.27ms ip=127.0.0.1
+[2026-10-14 15:00:30] q="kanan" kat="Semua" cocok=16432 durasi=232.51ms ip=127.0.0.1
+[2026-10-14 15:00:30] q="kanan" kat="TOBA SAMOSIR" cocok=34 durasi=16.70ms ip=127.0.0.1
+[2026-10-14 15:00:32] q="kanan" kat="Semua" cocok=16432 durasi=130.02ms ip=127.0.0.1
+[2026-10-14 15:00:32] q="kanan" kat="Semua" cocok=16432 durasi=138.78ms ip=127.0.0.1
+[2026-10-14 15:03:23] q="pejal" kat="Semua" cocok=6025 durasi=88.42ms ip=127.0.0.1
+[2026-10-14 15:10:27] q="pohon" kat="Semua" cocok=28 durasi=0.16ms ip=127.0.0.1
+[2026-10-14 15:10:28] q="qqqzzz xxxyyy" kat="Semua" cocok=0 durasi=821.45ms ip=127.0.0.1
+[2026-10-14 15:10:28] q="pohon" kat="Semua" cocok=28 durasi=0.33ms ip=127.0.0.1
+[2026-10-14 15:10:28] q="pohon" kat="Semua" cocok=28 durasi=0.27ms ip=127.0.0.1
+[2026-10-14 15:10:28] q="pohon" kat="TOBA SAMOSIR" cocok=0 durasi=0.10ms ip=127.0.0.1
+[2026-10-14 15:10:28] q="pohon" kat="Semua" cocok=28 durasi=0.38ms ip=127.0.0.1
+[2026-10-14 15:10:29] q="pohon" kat="Semua" cocok=28 durasi=0.28ms ip=127.0.0.1
+[2026-10-14 15:16:14] q="pindah" kat="Semua" cocok=1234 durasi=5.06ms ip=127.0.0.1
+[2026-10-14 15:16:14] q="qqqzzz xxxyyy" kat="Semua" cocok=0 durasi=0.07ms ip=127.0.0.1
+[2026-10-14 15:16:14] q="pindah" kat="Semua" cocok=1234 durasi=8.19ms ip=127.0.0.1
+[2026-10-14 15:16:14] q="pindah" kat="Semua" cocok=1234 durasi=4.95ms ip=127.0.0.1
+[2026-10-14 15:16:14] q="pindah" kat="TOBA SAMOSIR" cocok=0 durasi=1.24ms ip=127.0.0.1
+[2026-10-14 15:16:14] q="pindah" kat="Semua" cocok=1234 durasi=6.56ms ip=127.0.0.1
+[2026-10-14 15:16:15] q="pindah" kat="Semua" cocok=1234 durasi=7.22ms ip=127.0.0.1

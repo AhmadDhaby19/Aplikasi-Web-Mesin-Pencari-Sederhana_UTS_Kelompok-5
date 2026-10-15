@@ -1,0 +1,11 @@
+{% extends "kerangka.html" %}
+{% block judul %}{{ judul }} ({{ kode }}) | PustakaKata{% endblock %}
+
+{% block isi %}
+<div class="kosong galat-halaman">
+  <p class="galat-kode">{{ kode }}</p>
+  <h1>{{ judul }}</h1>
+  <p>{{ pesan }}</p>
+  <p><a class="tombol" href="{{ url_for('beranda') }}">Kembali ke beranda</a></p>
+</div>
+{% endblock %}

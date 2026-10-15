@@ -1,0 +1,92 @@
+{% extends "kerangka.html" %}
+{% block judul %}Katalog {{ total_semua|angka }} Dokumen | PustakaKata{% endblock %}
+
+{% block isi %}
+<section class="hero hero-ringkas">
+  <h1>Katalog {{ total_semua|angka }} Dokumen Korpus</h1>
+  <p class="hero-lead">Daftar seluruh dokumen yang telah terindeks pada sistem temu kembali informasi Vector Space Model.</p>
+
+  <form class="kotak-cari" action="{{ url_for('katalog_dokumen') }}" method="get" role="search">
+    <label for="q">Cari judul atau isi dokumen</label>
+    <div class="baris-cari">
+      <input type="search" id="q" name="q" value="{{ q }}" placeholder="Ketik kata pada judul atau isi..." autocomplete="off">
+      <select id="kategori" name="kategori" aria-label="Filter kategori">
+        <option value="">Semua kategori</option>
+        {% for kat in daftar_kategori %}
+        <option value="{{ kat }}"{% if kat == kategori_aktif %} selected{% endif %}>{{ kat }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit">Filter</button>
+    </div>
+  </form>
+</section>
+
+{% if kategori_aktif or q %}
+<div class="filter-aktif">
+  <span>Menampilkan <strong>{{ total|angka }}</strong> dari {{ total_semua|angka }} dokumen{% if kategori_aktif %} dalam kategori <strong>{{ kategori_aktif }}</strong>{% endif %}{% if q %} dengan kata kunci <em>"{{ q }}"</em>{% endif %}</span>
+  <a href="{{ url_for('katalog_dokumen') }}">Reset filter</a>
+</div>
+{% endif %}
+
+{% if docs %}
+<div class="tabel-bungkus">
+  <table class="tabel-katalog">
+    <thead>
+      <tr>
+        <th scope="col" style="width: 75px;">ID</th>
+        <th scope="col">Judul &amp; Cuplikan Teks</th>
+        <th scope="col" style="width: 150px;">Kategori</th>
+        <th scope="col" style="width: 125px;">Rincian</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for d in docs %}
+      <tr>
+        <th scope="row">#{{ d.id }}</th>
+        <td>
+          <strong><a href="{{ url_for('dokumen', doc_id=d.id) }}">{{ d.judul }}</a></strong>
+          {% if d.dokumen and d.dokumen.strip() != d.judul.strip() %}
+          <p class="cuplikan-katalog">{{ d.dokumen[:150] }}{% if d.dokumen|length > 150 %}...{% endif %}</p>
+          {% endif %}
+        </td>
+        <td>{% if d.kategori %}<span class="kat">{{ d.kategori }}</span>{% endif %}</td>
+        <td>
+          <a class="tautan-aksi" href="{{ url_for('dokumen', doc_id=d.id) }}">Bobot VSM &rarr;</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% if maks_hal > 1 %}
+<nav class="paginasi" aria-label="Halaman katalog dokumen">
+  {% if hal > 1 %}
+  <a class="tombol-hal" href="{{ url_for('katalog_dokumen', q=q if q else None, kategori=kategori_aktif if kategori_aktif else None, halaman=hal - 1) }}">Sebelumnya</a>
+  {% endif %}
+  <ul>
+    {% for item in jendela %}
+    <li>
+      {% if item == "…" %}
+      <span class="titik-hal">…</span>
+      {% elif item == hal %}
+      <span aria-current="page">{{ item }}</span>
+      {% else %}
+      <a href="{{ url_for('katalog_dokumen', q=q if q else None, kategori=kategori_aktif if kategori_aktif else None, halaman=item) }}" aria-label="Halaman {{ item }}">{{ item }}</a>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% if hal < maks_hal %}
+  <a class="tombol-hal" href="{{ url_for('katalog_dokumen', q=q if q else None, kategori=kategori_aktif if kategori_aktif else None, halaman=hal + 1) }}">Berikutnya</a>
+  {% endif %}
+</nav>
+{% endif %}
+
+{% else %}
+<div class="kosong">
+  <h2>Tidak ada dokumen yang sesuai</h2>
+  <p>Tidak ditemukan dokumen dengan filter yang dipilih. Silakan <a href="{{ url_for('katalog_dokumen') }}">reset filter</a>.</p>
+</div>
+{% endif %}
+{% endblock %}
