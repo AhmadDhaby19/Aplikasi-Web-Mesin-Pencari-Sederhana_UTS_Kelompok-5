@@ -124,16 +124,23 @@ def _tanda(path: Path) -> dict:
 
 def muat_indeks() -> SearchIndex:
     """Bangun indeks dari CSV, simpan ke pickle supaya start berikutnya cepat."""
-    if os.environ.get("BUILD_INDEKS") == "1":
+    is_vercel = os.environ.get("VERCEL") == "1"
+
+    if not is_vercel and os.environ.get("BUILD_INDEKS") == "1":
         CACHE_INDEKS.unlink(missing_ok=True)
 
-    tanda_data = _tanda(DATA)
+    tanda_data = _tanda(DATA) if DATA.exists() else {}
     if CACHE_INDEKS.exists():
         try:
             t0 = time.perf_counter()
             with open(CACHE_INDEKS, "rb") as fh:
                 tersimpan = pickle.load(fh)
-            if tersimpan.get("tanda") == tanda_data:
+            tanda_tersimpan = tersimpan.get("tanda", {})
+            if (
+                is_vercel
+                or tanda_tersimpan == tanda_data
+                or (tanda_data and tanda_tersimpan.get("size") == tanda_data.get("size"))
+            ):
                 indeks = tersimpan["indeks"]
                 indeks.stats["dari_cache"] = True
                 indeks.stats["muat_ms"] = (time.perf_counter() - t0) * 1000
@@ -143,9 +150,12 @@ def muat_indeks() -> SearchIndex:
 
     indeks = SearchIndex(load_documents(str(DATA)))
     indeks.stats["dari_cache"] = False
-    with open(CACHE_INDEKS, "wb") as fh:
-        pickle.dump({"tanda": tanda_data, "indeks": indeks}, fh)
-    preprocessing.simpan_cache_stem(CACHE_STEM)
+    try:
+        with open(CACHE_INDEKS, "wb") as fh:
+            pickle.dump({"tanda": tanda_data, "indeks": indeks}, fh)
+        preprocessing.simpan_cache_stem(CACHE_STEM)
+    except Exception:
+        pass
     return indeks
 
 

@@ -152,9 +152,12 @@ def simpan_cache_stem(path) -> bool:
         return False
     import json
 
-    with open(path, "w", encoding="utf-8") as fh:
-        json.dump(_TOKO_STEM, fh, ensure_ascii=False, indent=0, sort_keys=True)
-    return True
+    try:
+        with open(path, "w", encoding="utf-8") as fh:
+            json.dump(_TOKO_STEM, fh, ensure_ascii=False, indent=0, sort_keys=True)
+        return True
+    except Exception:
+        return False
 
 
 def preprocess(teks: str) -> dict:

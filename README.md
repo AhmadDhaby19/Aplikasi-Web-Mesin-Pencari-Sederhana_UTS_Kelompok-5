@@ -1,17 +1,13 @@
-# Anggota Kelompok 5:
-- Achileus Danatha Bhramantyo (23050974122)
-- Refiansyah Galuh R.P (23050974120)
-- Reza Choirudin D (23050974125)
-- Ahmad Dhaby S Bagus (23050974131)
-- Hamdi Ahnaf Aswana ( 23050974148)
-
-
-
 # PustakaKata
 
 Aplikasi web mesin pencari dokumen teks. Indeksasi, pembobotan
 kata TF-IDF, dan perangkingan dokumen dihitung di backend dengan Vector Space
 Model (VSM) dan cosine similarity.
+
+## 🌐 Live Demo
+
+Aplikasi telah di-deploy dan dapat diakses publik melalui Vercel:
+👉 **[https://aplikasi-web-mesin-pencari-sederhan.vercel.app](https://aplikasi-web-mesin-pencari-sederhan.vercel.app)**
 
 ## Cara menjalankan
 
@@ -93,3 +89,14 @@ Jika kolom judul tidak tersedia, sistem menggunakan teks asli dokumen tanpa labe
   Mengembalikan JSON daftar riwayat pencarian terbaru (waktu WIB, durasi ms, jumlah cocok).
 - `POST /riwayat/bersihkan`:
   Mengosongkan berkas log riwayat pencarian.
+
+## 👥 Anggota Kelompok 5 (Kontributor)
+
+| No | Nama | NIM |
+|:---:|:---|:---:|
+| 1 | **Achileus Danatha Bhramantyo** | 23050974122 |
+| 2 | **Refiansyah Galuh R.P** | 23050974120 |
+| 3 | **Reza Choirudin D** | 23050974125 |
+| 4 | **Ahmad Dhaby S Bagus** | 23050974131 |
+| 5 | **Hamdi Ahnaf Aswana** | 23050974148 |
+
