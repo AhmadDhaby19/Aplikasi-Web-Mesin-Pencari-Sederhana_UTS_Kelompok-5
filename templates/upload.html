@@ -7,6 +7,15 @@
   <p class="hero-lead">Ganti korpus dokumen dengan mengunggah berkas CSV Anda sendiri. Sistem akan memverifikasi struktur kolom, melakukan pra-proses 5 tahap, dan membangun ulang indeks VSM secara otomatis.</p>
 </section>
 
+{% if is_vercel %}
+<div class="pesan-info" style="background: #f0f7ff; border: 1px solid #c8e1fb; border-left: 4px solid #1a73e8; padding: 1rem 1.25rem; border-radius: 8px; margin-bottom: 1.5rem;" role="note">
+  <p style="margin: 0 0 0.4rem 0; font-weight: 700; color: #154c86;">ℹ️ Informasi Lingkungan Serverless (Vercel Cloud)</p>
+  <p style="margin: 0; font-size: 0.9rem; line-height: 1.5; color: #2c4960;">
+    Aplikasi ini berjalan pada arsitektur <em>serverless cloud</em> yang bersifat <em>read-only</em> dan <em>ephemeral</em>. Seluruh 36.427 dokumen aktif telah siap digunakan dengan kecepatan tinggi melalui memori cache. Untuk menambahkan atau mengganti dataset korpus secara permanen, perbarui berkas <code>data/dataset.csv</code> di repositori GitHub atau jalankan aplikasi di komputer lokal melalui perintah <code>py app.py</code>.
+  </p>
+</div>
+{% endif %}
+
 {% if sukses %}
 <div class="pesan-sukses" role="alert">
   <p><strong>Sukses:</strong> {{ sukses }}</p>

@@ -19,11 +19,13 @@ from engine import SearchIndex, load_documents
 from engine import preprocessing
 from engine.preprocessing import clean, preprocess as proses_teks
 
+IS_VERCEL = os.environ.get("VERCEL") == "1"
 ROOT = Path(__file__).resolve().parent
 DATA = Path(os.environ.get("DATASET") or ROOT / "data" / "dataset.csv")
 CACHE_INDEKS = ROOT / "data" / "indeks_cache.pkl"
 CACHE_STEM = ROOT / "data" / "stem_cache.json"
-LOG_PENCARIAN = ROOT / "data" / "pencarian.log"
+LOG_PENCARIAN_DEFAULT = ROOT / "data" / "pencarian.log"
+LOG_PENCARIAN = Path("/tmp/pencarian.log") if IS_VERCEL else LOG_PENCARIAN_DEFAULT
 PER_HALAMAN = 10
 PER_HALAMAN_KATALOG = 20
 PER_HALAMAN_KOSAKATA = 30
@@ -79,6 +81,13 @@ def catat_log_pencarian(kueri: str, kategori: str | None, jumlah_cocok: int, dur
         waktu = datetime.datetime.now(WIB).strftime("%Y-%m-%d %H:%M:%S")
         kat = kategori or "Semua"
         baris = f"[{waktu}] q=\"{kueri}\" kat=\"{kat}\" cocok={jumlah_cocok} durasi={durasi_ms:.2f}ms ip={ip}\n"
+        LOG_PENCARIAN.parent.mkdir(parents=True, exist_ok=True)
+        if IS_VERCEL and not LOG_PENCARIAN.exists() and LOG_PENCARIAN_DEFAULT.exists():
+            try:
+                import shutil
+                shutil.copyfile(LOG_PENCARIAN_DEFAULT, LOG_PENCARIAN)
+            except Exception:
+                pass
         with open(LOG_PENCARIAN, "a", encoding="utf-8") as f:
             f.write(baris)
             f.flush()
@@ -88,10 +97,14 @@ def catat_log_pencarian(kueri: str, kategori: str | None, jumlah_cocok: int, dur
 
 def baca_log_pencarian(batas: int = 100) -> list[dict]:
     baris_log = []
-    if not LOG_PENCARIAN.exists():
-        return baris_log
+    log_file = LOG_PENCARIAN
+    if not log_file.exists():
+        if IS_VERCEL and LOG_PENCARIAN_DEFAULT.exists():
+            log_file = LOG_PENCARIAN_DEFAULT
+        else:
+            return baris_log
     try:
-        with open(LOG_PENCARIAN, "r", encoding="utf-8") as f:
+        with open(log_file, "r", encoding="utf-8") as f:
             lines = f.readlines()
         import re
         for line in reversed(lines[-batas:]):
@@ -182,6 +195,7 @@ app.jinja_env.filters["durasi"] = durasi
 @app.context_processor
 def konteks_umum():
     return {
+        "is_vercel": IS_VERCEL,
         "stat_dasar": {
             "jumlah_dokumen": index.stats["jumlah_dokumen"],
             "jumlah_term": index.stats["jumlah_term"],
@@ -303,40 +317,48 @@ def halaman_upload():
     pesan_galat = None
 
     if request.method == "POST":
-        berkas = request.files.get("berkas")
-        if not berkas or not berkas.filename:
-            pesan_galat = "Pilih berkas CSV terlebih dahulu."
-        elif not berkas.filename.lower().endswith(".csv"):
-            pesan_galat = "Format berkas harus berekstensi .csv."
+        if IS_VERCEL:
+            pesan_galat = (
+                "Mode Serverless Cloud (Vercel): Lingkungan cloud bersifat ephemeral & read-only, "
+                "sehingga berkas CSV baru tidak dapat disimpan secara permanen di server Vercel. "
+                "Untuk mengganti korpus dokumen, silakan perbarui berkas data/dataset.csv pada repository GitHub "
+                "atau jalankan aplikasi di komputer lokal (py app.py)."
+            )
         else:
-            temp_path = ROOT / "data" / "temp_upload.csv"
-            try:
-                berkas.save(str(temp_path))
-                docs_uji = load_documents(str(temp_path))
-                if len(docs_uji) == 0:
-                    temp_path.unlink(missing_ok=True)
-                    pesan_galat = "Berkas CSV tidak memuat baris dokumen yang valid."
-                else:
-                    if DATA.exists():
-                        backup_path = ROOT / "data" / "dataset_backup.csv"
-                        if backup_path.exists():
-                            backup_path.unlink(missing_ok=True)
-                        DATA.replace(backup_path)
-                    temp_path.replace(DATA)
+            berkas = request.files.get("berkas")
+            if not berkas or not berkas.filename:
+                pesan_galat = "Pilih berkas CSV terlebih dahulu."
+            elif not berkas.filename.lower().endswith(".csv"):
+                pesan_galat = "Format berkas harus berekstensi .csv."
+            else:
+                temp_path = ROOT / "data" / "temp_upload.csv"
+                try:
+                    berkas.save(str(temp_path))
+                    docs_uji = load_documents(str(temp_path))
+                    if len(docs_uji) == 0:
+                        temp_path.unlink(missing_ok=True)
+                        pesan_galat = "Berkas CSV tidak memuat baris dokumen yang valid."
+                    else:
+                        if DATA.exists():
+                            backup_path = ROOT / "data" / "dataset_backup.csv"
+                            if backup_path.exists():
+                                backup_path.unlink(missing_ok=True)
+                            DATA.replace(backup_path)
+                        temp_path.replace(DATA)
 
-                    CACHE_INDEKS.unlink(missing_ok=True)
-                    t0 = time.perf_counter()
-                    index = muat_indeks()
-                    durasi_bangun = (time.perf_counter() - t0) * 1000
+                        CACHE_INDEKS.unlink(missing_ok=True)
+                        t0 = time.perf_counter()
+                        index = muat_indeks()
+                        durasi_bangun = (time.perf_counter() - t0) * 1000
 
-                    pesan_sukses = (
-                        f"Berhasil mengunggah dan mengindeks {len(index.documents):,} dokumen "
-                        f"({len(index.vocab):,} lexicon unik) dalam {durasi_bangun:.1f} ms."
-                    )
-            except Exception as e:
-                if temp_path.exists():
-                    temp_path.unlink(missing_ok=True)
-                pesan_galat = f"Gagal memproses berkas CSV: {str(e)}"
+                        pesan_sukses = (
+                            f"Berhasil mengunggah dan mengindeks {len(index.documents):,} dokumen "
+                            f"({len(index.vocab):,} lexicon unik) dalam {durasi_bangun:.1f} ms."
+                        )
+                except Exception as e:
+                    if temp_path.exists():
+                        temp_path.unlink(missing_ok=True)
+                    pesan_galat = f"Gagal memproses berkas CSV: {str(e)}"
 
     st = DATA.stat() if DATA.exists() else None
     info_dataset = {
@@ -571,9 +593,9 @@ def halaman_riwayat():
 @app.route("/riwayat/bersihkan", methods=["POST"])
 def bersihkan_riwayat():
     try:
-        if LOG_PENCARIAN.exists():
-            with open(LOG_PENCARIAN, "w", encoding="utf-8") as f:
-                f.write("")
+        LOG_PENCARIAN.parent.mkdir(parents=True, exist_ok=True)
+        with open(LOG_PENCARIAN, "w", encoding="utf-8") as f:
+            f.write("")
     except Exception:
         pass
     if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.is_json:
@@ -597,10 +619,14 @@ def api_riwayat():
 
 @app.route("/export/riwayat")
 def export_riwayat():
-    if not LOG_PENCARIAN.exists():
+    log_file = LOG_PENCARIAN
+    if not log_file.exists():
+        if IS_VERCEL and LOG_PENCARIAN_DEFAULT.exists():
+            log_file = LOG_PENCARIAN_DEFAULT
+    if not log_file.exists():
         isi = ""
     else:
-        with open(LOG_PENCARIAN, "r", encoding="utf-8") as f:
+        with open(log_file, "r", encoding="utf-8") as f:
             isi = f.read()
     return Response(
         isi,
