@@ -38,16 +38,139 @@
   </footer>
 
   <script>
-    document.addEventListener("submit", function (event) {
-      var form = event.target;
-      var label = form.getAttribute("data-sibuk");
-      if (!label) return;
-      var tombol = form.querySelector('button[type="submit"]');
-      if (tombol) {
-        tombol.disabled = true;
-        tombol.textContent = label;
+    (function () {
+      function dapatkanWaktuWIB() {
+        var d = new Date();
+        var utc = d.getTime() + (d.getTimezoneOffset() * 60000);
+        var wib = new Date(utc + (3600000 * 7));
+        var y = wib.getFullYear();
+        var m = String(wib.getMonth() + 1).padStart(2, '0');
+        var day = String(wib.getDate()).padStart(2, '0');
+        var h = String(wib.getHours()).padStart(2, '0');
+        var min = String(wib.getMinutes()).padStart(2, '0');
+        var s = String(wib.getSeconds()).padStart(2, '0');
+        return y + '-' + m + '-' + day + ' ' + h + ':' + min + ':' + s;
       }
-    });
+
+      window.simpanRiwayatLokal = function (entri) {
+        if (!entri || !entri.kueri) return;
+        entri.waktu = entri.waktu || dapatkanWaktuWIB();
+        entri.kategori = entri.kategori || "Semua";
+        entri.cocok = entri.cocok != null ? String(entri.cocok) : "1";
+        entri.durasi = entri.durasi || "-";
+        
+        try {
+          var kunci = "pustakakata_riwayat_browser";
+          var raw = localStorage.getItem(kunci);
+          var list = raw ? JSON.parse(raw) : [];
+          // Hindari duplikasi berulang dalam jeda 2 detik
+          if (list.length > 0 && list[0].kueri === entri.kueri && (Date.now() - (list[0]._ts || 0)) < 2000) {
+            return;
+          }
+          entri._ts = Date.now();
+          list.unshift(entri);
+          if (list.length > 100) list = list.slice(0, 100);
+          localStorage.setItem(kunci, JSON.stringify(list));
+        } catch (e) {}
+
+        // Sinkronisasi ke server di latar belakang
+        try {
+          var payload = JSON.stringify({
+            kueri: entri.kueri,
+            kategori: entri.kategori,
+            cocok: parseInt(entri.cocok, 10) || 1,
+            durasi_ms: parseFloat(entri.durasi) || 0.0
+          });
+          if (navigator.sendBeacon) {
+            var blob = new Blob([payload], { type: "application/json" });
+            navigator.sendBeacon("/api/riwayat/catat", blob);
+          } else {
+            fetch("/api/riwayat/catat", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: payload,
+              keepalive: true
+            }).catch(function () {});
+          }
+        } catch (e) {}
+      };
+
+      // Catat pengiriman formulir pencarian
+      document.addEventListener("submit", function (event) {
+        var form = event.target;
+        var label = form.getAttribute("data-sibuk");
+        if (label) {
+          var tombol = form.querySelector('button[type="submit"]');
+          if (tombol) {
+            tombol.disabled = true;
+            tombol.textContent = label;
+          }
+        }
+
+        var action = form.getAttribute("action") || "";
+        if (action.indexOf("/search") !== -1) {
+          var inputQ = form.querySelector('input[name="q"]');
+          var selectKat = form.querySelector('select[name="kategori"]');
+          if (inputQ && inputQ.value.trim()) {
+            window.simpanRiwayatLokal({
+              kueri: inputQ.value.trim(),
+              kategori: (selectKat && selectKat.value) ? selectKat.value : "Semua",
+              cocok: "-",
+              durasi: "Baru",
+              aksi: "pencarian"
+            });
+          }
+        }
+      });
+
+      // Catat setiap klik dokumen atau kueri rekomendasi
+      document.addEventListener("click", function (event) {
+        var a = event.target.closest("a");
+        if (!a) return;
+        var href = a.getAttribute("href") || "";
+
+        // 1. Klik judul atau rincian dokumen (/dokumen/<id>)
+        var matchDoc = href.match(/\/dokumen\/([^\/\?#]+)/);
+        if (matchDoc) {
+          var docId = matchDoc[1];
+          var judul = a.textContent.trim().replace(/^Bobot VSM\s*→/, '').trim();
+          if (!judul || judul === "Bobot VSM →") {
+            var kartu = a.closest(".kartu-hasil, tr");
+            if (kartu) {
+              var heading = kartu.querySelector("h3, strong");
+              if (heading) judul = heading.textContent.trim();
+            }
+          }
+          var label = "Buka Dokumen #" + docId + (judul ? (": " + judul.slice(0, 35)) : "");
+          window.simpanRiwayatLokal({
+            kueri: label,
+            kategori: "Dokumen",
+            cocok: "1",
+            durasi: "-",
+            aksi: "dokumen"
+          });
+          return;
+        }
+
+        // 2. Klik kueri pencarian dari contoh/link (/search?q=...)
+        if (href.indexOf("/search?") !== -1) {
+          try {
+            var urlObj = new URL(a.href);
+            var q = urlObj.searchParams.get("q");
+            var kat = urlObj.searchParams.get("kategori") || "Semua";
+            if (q) {
+              window.simpanRiwayatLokal({
+                kueri: q,
+                kategori: kat,
+                cocok: "-",
+                durasi: "-",
+                aksi: "pencarian"
+              });
+            }
+          } catch (e) {}
+        }
+      });
+    })();
   </script>
 </body>
 </html>

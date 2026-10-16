@@ -304,6 +304,14 @@ def halaman_preprocess():
                 hasil=None,
                 galat="Teks masih kosong. Tempel atau ketik dokumen pada kotak di atas.",
             )
+        cuplikan = clean(teks)[:35] or teks[:35]
+        catat_log_pencarian(
+            f"Pra-proses: {cuplikan}",
+            "Demo",
+            1,
+            0.0,
+            request.remote_addr or "127.0.0.1",
+        )
         return render_template(
             "preprocess.html", teks=teks, hasil=proses_teks(teks), galat=None
         )
@@ -438,6 +446,13 @@ def dokumen(doc_id):
     if temu is None:
         abort(404)
     idx, d = temu
+    catat_log_pencarian(
+        f"Dokumen #{doc_id}: {d.get('judul', '')[:35]}",
+        d.get("kategori") or "Semua",
+        1,
+        0.0,
+        request.remote_addr or "127.0.0.1",
+    )
     return render_template(
         "dokumen.html",
         d=d,
@@ -615,6 +630,23 @@ def api_riwayat():
     except ValueError:
         batas = 50
     return jsonify(baca_log_pencarian(batas))
+
+
+@app.route("/api/riwayat/catat", methods=["POST"])
+def api_catat_riwayat():
+    try:
+        data = request.get_json(silent=True) or request.form
+        kueri = (data.get("kueri") or "").strip()
+        kategori = data.get("kategori") or "Semua"
+        cocok = int(data.get("cocok", 1))
+        durasi_str = str(data.get("durasi_ms", "0.0")).replace("ms", "").strip()
+        durasi_ms = float(durasi_str) if durasi_str else 0.0
+        if kueri:
+            catat_log_pencarian(kueri, kategori, cocok, durasi_ms, request.remote_addr or "127.0.0.1")
+            return jsonify({"sukses": True})
+    except Exception:
+        pass
+    return jsonify({"sukses": False}), 400
 
 
 @app.route("/export/riwayat")

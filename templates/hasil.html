@@ -282,4 +282,18 @@
   {% endif %}
 </section>
 {% endif %}
+
+{% if not kosong and r and q %}
+<script>
+  if (typeof window.simpanRiwayatLokal === "function") {
+    window.simpanRiwayatLokal({
+      kueri: {{ q|tojson }},
+      kategori: {{ (kategori_aktif or "Semua")|tojson }},
+      cocok: {{ r.total|tojson }},
+      durasi: {{ (r.ambil_ms|round(2)|string + "ms")|tojson }},
+      aksi: "pencarian"
+    });
+  }
+</script>
+{% endif %}
 {% endblock %}

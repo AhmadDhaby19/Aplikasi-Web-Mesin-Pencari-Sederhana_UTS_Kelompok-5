@@ -9,15 +9,13 @@
       <span class="badge-live" id="status-live">Real-time Aktif</span>
     </div>
     <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
-      {% if riwayat %}
       <a class="tombol-sekunder" id="tombol-unduh" href="{{ url_for('export_riwayat') }}">Unduh File pencarian.log</a>
       <form id="form-bersihkan" method="post" action="{{ url_for('bersihkan_riwayat') }}" style="margin: 0;">
-        <button type="submit" class="tombol-sekunder tombol-bahaya" onclick="return confirm('Kosongkan semua log riwayat pencarian?')">Bersihkan Riwayat</button>
+        <button type="submit" class="tombol-sekunder tombol-bahaya" onclick="return konfirmasiBersihkan(event)">Bersihkan Riwayat</button>
       </form>
-      {% endif %}
     </div>
   </div>
-  <p class="hero-lead">Catatan otomatis riwayat kueri pengguna pada sistem temu kembali informasi, mencakup waktu pencarian, filter kategori, jumlah dokumen relevan, dan latensi komputasi VSM.</p>
+  <p class="hero-lead">Catatan otomatis riwayat interaksi dan pencarian pengguna pada sistem temu kembali informasi, mencakup waktu pencarian, filter kategori, dokumen yang diklik, jumlah dokumen relevan, dan latensi komputasi VSM.</p>
 </section>
 
 {% if sukses %}
@@ -33,11 +31,11 @@
         <tr>
           <th scope="col" style="width: 50px;">No</th>
           <th scope="col" style="width: 190px;">Waktu (WIB)</th>
-          <th scope="col">Kueri Pencarian</th>
+          <th scope="col">Aktivitas / Kueri Pencarian</th>
           <th scope="col" style="width: 150px;">Kategori</th>
           <th scope="col" style="width: 130px;">Dokumen Cocok</th>
           <th scope="col" style="width: 110px;">Durasi</th>
-          <th scope="col" style="width: 110px;">Aksi</th>
+          <th scope="col" style="width: 120px;">Aksi</th>
         </tr>
       </thead>
       <tbody id="tabel-body-riwayat">
@@ -48,17 +46,33 @@
             <span class="waktu-relatif" data-waktu="{{ item.waktu }}"></span><br>
             <code class="meta-kecil">{{ item.waktu }}</code>
           </td>
-          <th scope="row"><strong>{{ item.kueri }}</strong></th>
+          <th scope="row">
+            {% if "Dokumen #" in item.kueri %}
+              <span title="Interaksi Membuka Dokumen">📄</span> <strong>{{ item.kueri }}</strong>
+            {% elif "Pra-proses:" in item.kueri %}
+              <span title="Demo Pra-proses">⚙️</span> <strong>{{ item.kueri }}</strong>
+            {% else %}
+              <span title="Pencarian VSM">🔍</span> <strong>{{ item.kueri }}</strong>
+            {% endif %}
+          </th>
           <td>{% if item.kategori != 'Semua' %}<span class="kat">{{ item.kategori }}</span>{% else %}<span class="tinta-redup">Semua</span>{% endif %}</td>
           <td>{{ item.cocok }} dok</td>
           <td><span class="meta-kecil">{{ item.durasi }}</span></td>
-          <td><a class="tautan-aksi" href="{{ url_for('cari', q=item.kueri, kategori=item.kategori if item.kategori != 'Semua' else None) }}">Cari lagi &rarr;</a></td>
+          <td>
+            {% if "Dokumen #" in item.kueri %}
+              <a class="tautan-aksi" href="{% if 'Dokumen #' in item.kueri %}/dokumen/{{ item.kueri.split('#')[1].split(':')[0].strip() }}{% else %}#{% endif %}">Buka &rarr;</a>
+            {% elif "Pra-proses:" in item.kueri %}
+              <a class="tautan-aksi" href="{{ url_for('halaman_preprocess') }}">Uji lagi &rarr;</a>
+            {% else %}
+              <a class="tautan-aksi" href="{{ url_for('cari', q=item.kueri, kategori=item.kategori if item.kategori != 'Semua' else None) }}">Cari lagi &rarr;</a>
+            {% endif %}
+          </td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
-  <p class="tahap-catatan">Menampilkan hingga 100 aktivitas pencarian terakhir dari berkas <code>data/pencarian.log</code> &middot; Diperbarui otomatis secara live.</p>
+  <p class="tahap-catatan">Menampilkan aktivitas interaksi dan pencarian terbaru &middot; Diperbarui otomatis secara live.</p>
 </div>
 
 <div id="wadah-kosong" class="kosong" {% if riwayat %}style="display:none;"{% endif %}>
@@ -67,6 +81,17 @@
 </div>
 
 <script>
+  function konfirmasiBersihkan(e) {
+    if (!confirm('Kosongkan semua log riwayat pencarian?')) {
+      e.preventDefault();
+      return false;
+    }
+    try {
+      localStorage.removeItem("pustakakata_riwayat_browser");
+    } catch (err) {}
+    return true;
+  }
+
   (function () {
     function hitungRelatif(waktuStr) {
       if (!waktuStr) return "-";
@@ -93,13 +118,53 @@
       });
     }
 
+    function ambilRiwayatLokal() {
+      try {
+        var raw = localStorage.getItem("pustakakata_riwayat_browser");
+        return raw ? JSON.parse(raw) : [];
+      } catch (e) {
+        return [];
+      }
+    }
+
     var riwayatLamaJson = "";
 
     function pollingRiwayat() {
       fetch("/api/riwayat?batas=100")
         .then(function (res) { return res.json(); })
-        .then(function (data) {
-          var baruJson = JSON.stringify(data);
+        .then(function (serverData) {
+          var localData = ambilRiwayatLokal();
+          
+          // Gabungkan data server dan data browser lokal
+          var map = {};
+          var gabungan = [];
+
+          (serverData || []).forEach(function (item) {
+            var key = (item.waktu || "") + "|" + (item.kueri || "");
+            if (!map[key]) {
+              map[key] = true;
+              gabungan.push(item);
+            }
+          });
+
+          localData.forEach(function (item) {
+            var key = (item.waktu || "") + "|" + (item.kueri || "");
+            if (!map[key]) {
+              map[key] = true;
+              gabungan.push(item);
+            }
+          });
+
+          // Urutkan waktu descending
+          gabungan.sort(function (a, b) {
+            var tA = new Date((a.waktu || "").replace(/-/g, "/")).getTime() || 0;
+            var tB = new Date((b.waktu || "").replace(/-/g, "/")).getTime() || 0;
+            return tB - tA;
+          });
+
+          if (gabungan.length > 100) gabungan = gabungan.slice(0, 100);
+
+          var baruJson = JSON.stringify(gabungan);
           if (baruJson === riwayatLamaJson) {
             perbaruiLabelWaktu();
             return;
@@ -110,7 +175,7 @@
           var wadahKosong = document.getElementById("wadah-kosong");
           var tbody = document.getElementById("tabel-body-riwayat");
 
-          if (!data || data.length === 0) {
+          if (!gabungan || gabungan.length === 0) {
             wadahRiwayat.style.display = "none";
             wadahKosong.style.display = "block";
             tbody.innerHTML = "";
@@ -121,25 +186,43 @@
           wadahKosong.style.display = "none";
 
           var barisHtml = "";
-          data.forEach(function (item, index) {
-            var katHtml = item.kategori !== "Semua"
+          gabungan.forEach(function (item, index) {
+            var katHtml = item.kategori && item.kategori !== "Semua"
               ? '<span class="kat">' + escapeHtml(item.kategori) + '</span>'
               : '<span class="tinta-redup">Semua</span>';
-            var cariUrl = "/search?q=" + encodeURIComponent(item.kueri);
-            if (item.kategori && item.kategori !== "Semua") {
-              cariUrl += "&kategori=" + encodeURIComponent(item.kategori);
+
+            var ikonHtml = "🔍";
+            var aksiHtml = "";
+            var kueriText = item.kueri || "";
+
+            if (kueriText.indexOf("Dokumen #") !== -1) {
+              ikonHtml = "📄";
+              var matchId = kueriText.match(/Dokumen #([^\:\s]+)/);
+              var docId = matchId ? matchId[1] : "";
+              aksiHtml = '<a class="tautan-aksi" href="/dokumen/' + encodeURIComponent(docId) + '">Buka &rarr;</a>';
+            } else if (kueriText.indexOf("Pra-proses:") !== -1) {
+              ikonHtml = "⚙️";
+              aksiHtml = '<a class="tautan-aksi" href="/preprocess">Uji lagi &rarr;</a>';
+            } else {
+              var cariUrl = "/search?q=" + encodeURIComponent(kueriText);
+              if (item.kategori && item.kategori !== "Semua") {
+                cariUrl += "&kategori=" + encodeURIComponent(item.kategori);
+              }
+              aksiHtml = '<a class="tautan-aksi" href="' + cariUrl + '">Cari lagi &rarr;</a>';
             }
+
             barisHtml += '<tr>' +
               '<td>' + (index + 1) + '</td>' +
               '<td><span class="waktu-relatif" data-waktu="' + escapeHtml(item.waktu) + '">' + hitungRelatif(item.waktu) + '</span><br><code class="meta-kecil">' + escapeHtml(item.waktu) + '</code></td>' +
-              '<th scope="row"><strong>' + escapeHtml(item.kueri) + '</strong></th>' +
+              '<th scope="row"><span style="margin-right: 4px;">' + ikonHtml + '</span><strong>' + escapeHtml(kueriText) + '</strong></th>' +
               '<td>' + katHtml + '</td>' +
               '<td>' + escapeHtml(item.cocok) + ' dok</td>' +
               '<td><span class="meta-kecil">' + escapeHtml(item.durasi) + '</span></td>' +
-              '<td><a class="tautan-aksi" href="' + cariUrl + '">Cari lagi &rarr;</a></td>' +
+              '<td>' + aksiHtml + '</td>' +
               '</tr>';
           });
           tbody.innerHTML = barisHtml;
+          perbaruiLabelWaktu();
         })
         .catch(function () {});
     }
@@ -156,7 +239,9 @@
 
     perbaruiLabelWaktu();
     setInterval(perbaruiLabelWaktu, 10000);
-    setInterval(pollingRiwayat, 3000);
+    setInterval(pollingRiwayat, 2500);
+    // Polling pertama setelah 100ms
+    setTimeout(pollingRiwayat, 100);
   })();
 </script>
 {% endblock %}
